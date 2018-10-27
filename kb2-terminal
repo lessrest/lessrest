@@ -1,0 +1,2 @@
+#!/bin/sh
+st -f "$KB2_FONT_STRING" "$@"

@@ -1,0 +1,86 @@
+#!/usr/bin/env node
+
+os         = require("os")
+ui         = require("blessed")
+formatDate = require("date-fns/format")
+spawn      = require("spawn-promise")
+util       = require("util")
+
+logPath = `${os.homedir()}/kb2-chatlog`
+
+makeDatabase = fs => async dbPath => {
+  let writer = fs.createWriteStream(logPath, { flags: "a" })
+  let write = util.promisify((x, cb) => writer.write(x, "utf-8", cb))
+
+  return {
+    readAll: async () =>
+      fs.readFileSync(logPath, { flag: "a+" })
+        .toString()
+        .split("\n")
+        .filter(x => x)
+        .map(x => JSON.parse(x)),
+    
+    append: async x => {
+      await write(`${JSON.stringify(x)}\n`)
+    }
+  }
+}
+
+async function main() {
+  console.log("Loading chat history...")
+  let database = await makeDatabase(require("fs"))(logPath)
+  let messages = await database.readAll()
+
+  screen = ui.screen({
+    smartCSR: true,
+    dockBorders: true,
+    debug: true,
+  })
+  
+  screen.title = os.hostname()
+  
+  chat = ui.log({
+    tags: true,
+    scrollOnInput: true,
+    top: 0,
+    bottom: 1,
+    padding: { left: 1, right: 1, },
+  })
+  
+  screen.append(chat)
+  
+  screen.key("C-c", () => process.exit(0))
+  
+  scrollstep = 10
+  
+  screen.key("pageup", () => { chat.scroll(-scrollstep); screen.render() })
+  screen.key("pagedown", () => { chat.scroll(scrollstep); screen.render() })
+  
+  say = ({ date, who, text }) => {
+    chat.add("")
+    chat.add(
+      `{yellow-fg}${formatDate(date, "dddd YYYY-MM-DD HH:mm")}{/}`
+    )
+    chat.add(`{bold}${who}{/}: ${text}`)
+    chat.scroll(1000 * 1000)
+  }
+
+  for (let message of messages) {
+    say(message)
+  }
+
+  screen.key("enter", async () => {
+    try {
+      let who = (await spawn("kb2-choose-user")).toString().trim()
+      let text = (await spawn("kb2-write-line", [who])).toString().trim()
+      let message = { who, text, date: Date.now(), }
+      await database.append(message)
+      say(message)
+    } catch {
+    }
+  })
+  
+  screen.render()
+}
+
+main()

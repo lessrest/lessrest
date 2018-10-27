@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -e; tmp=$(mktemp)
+kb2-terminal -g 100x4 -i \
+  bash -c "read -p \"$1: \" -e && echo \"\$REPLY\" > $tmp"
+cat $tmp; rm -f $tmp

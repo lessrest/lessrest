@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -e
+[ ! -e ~/kb2-users ] || touch ~/kb2-users
+opts=(-fn "$KB2_FONT_STRING" -nf black -sf black -nb white -sb yellow \
+      -p "Who are you?" -b -i)
+user=$(dmenu < ~/kb2-users "${opts[@]}")
+if ! grep -Fxq "$user" ~/kb2-users; then echo "$user" >> ~/kb2-users; fi
+echo "$user"
